@@ -32,6 +32,7 @@ export function Live() {
     todayFinished,
     isMatchDay,
     isLoading,
+    isFetching,
     refetch,
   } = useLiveState();
 
@@ -50,7 +51,7 @@ export function Live() {
 
   return (
     <div>
-      <LiveHeader onRefresh={refetch} />
+      <LiveHeader onRefresh={refetch} isFetching={isFetching} />
       <div className="pt-4 pb-6 flex flex-col gap-6">
         {liveMatches.length > 0 && (
           <section className="px-4">
@@ -102,7 +103,13 @@ export function Live() {
   );
 }
 
-function LiveHeader({ onRefresh }: { onRefresh?: () => void }) {
+function LiveHeader({
+  onRefresh,
+  isFetching,
+}: {
+  onRefresh?: () => void;
+  isFetching?: boolean;
+}) {
   return (
     <div
       className="sticky top-0 z-10 flex items-center justify-between px-4 h-14"
@@ -146,6 +153,11 @@ function LiveHeader({ onRefresh }: { onRefresh?: () => void }) {
             strokeWidth="2.2"
             strokeLinecap="round"
             strokeLinejoin="round"
+            style={
+              isFetching
+                ? { animation: 'spin 0.8s linear infinite' }
+                : undefined
+            }
           >
             <path d="M23 4v6h-6" />
             <path d="M1 20v-6h6" />

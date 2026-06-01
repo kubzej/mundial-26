@@ -80,6 +80,7 @@ export function MatchCard({ fixture, compact = false }: MatchCardProps) {
               {new Date(info.date).toLocaleTimeString('cs-CZ', {
                 hour: '2-digit',
                 minute: '2-digit',
+                timeZone: 'Europe/Prague',
               })}
             </div>
           )}

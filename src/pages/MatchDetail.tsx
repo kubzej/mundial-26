@@ -199,6 +199,7 @@ function MatchHeader({ fixture }: { fixture: Fixture }) {
               {new Date(info.date).toLocaleTimeString('cs-CZ', {
                 hour: '2-digit',
                 minute: '2-digit',
+                timeZone: 'Europe/Prague',
               })}
             </div>
           )}
@@ -371,6 +372,7 @@ function EventsTimeline({
 }
 
 function LineupsView({ lineups }: { lineups: Lineup[] }) {
+  const navigate = useNavigate();
   if (!lineups.length) {
     return (
       <div
@@ -423,9 +425,10 @@ function LineupsView({ lineups }: { lineups: Lineup[] }) {
 
           {/* Starting XI */}
           {lineup.startXI.map(({ player }, idx) => (
-            <div
+            <button
               key={player.id}
-              className="flex items-center gap-3 px-4 py-2.5"
+              onClick={() => navigate(`/player/${player.id}`)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
               style={{
                 borderBottom:
                   idx < lineup.startXI.length - 1
@@ -456,10 +459,8 @@ function LineupsView({ lineups }: { lineups: Lineup[] }) {
                   {player.pos}
                 </span>
               )}
-            </div>
+            </button>
           ))}
-
-          {/* Subs header */}
           {lineup.substitutes.length > 0 && (
             <>
               <div
@@ -473,9 +474,10 @@ function LineupsView({ lineups }: { lineups: Lineup[] }) {
                 Náhradníci
               </div>
               {lineup.substitutes.map(({ player }, idx) => (
-                <div
+                <button
                   key={player.id}
-                  className="flex items-center gap-3 px-4 py-2.5"
+                  onClick={() => navigate(`/player/${player.id}`)}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
                   style={{
                     borderBottom:
                       idx < lineup.substitutes.length - 1
@@ -495,7 +497,7 @@ function LineupsView({ lineups }: { lineups: Lineup[] }) {
                   >
                     {player.name}
                   </span>
-                </div>
+                </button>
               ))}
             </>
           )}
@@ -625,6 +627,7 @@ function StatsView({ stats }: { stats: FixtureStatistic[] }) {
 }
 
 function RatingsView({ playerStats }: { playerStats: FixturePlayerStats[] }) {
+  const navigate = useNavigate();
   if (!playerStats.length) {
     return (
       <div
@@ -678,9 +681,10 @@ function RatingsView({ playerStats }: { playerStats: FixturePlayerStats[] }) {
                   : '#ef4444';
 
             return (
-              <div
+              <button
                 key={p.player.id}
-                className="flex items-center gap-3 px-4 py-2.5"
+                onClick={() => navigate(`/player/${p.player.id}`)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
                 style={{
                   borderBottom:
                     idx < teamStats.players.length - 1
@@ -722,7 +726,7 @@ function RatingsView({ playerStats }: { playerStats: FixturePlayerStats[] }) {
                     {rating.toFixed(1)}
                   </span>
                 )}
-              </div>
+              </button>
             );
           })}
         </div>

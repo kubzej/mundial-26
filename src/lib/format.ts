@@ -5,6 +5,7 @@ export function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString('cs-CZ', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/Prague',
   });
 }
 
@@ -15,6 +16,7 @@ export function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('cs-CZ', {
     day: 'numeric',
     month: 'short',
+    timeZone: 'Europe/Prague',
   });
 }
 

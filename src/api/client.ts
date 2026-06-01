@@ -1,5 +1,8 @@
+import { mockFetch } from './mock';
+
 const API_BASE = 'https://v3.football.api-sports.io';
 const API_KEY = import.meta.env.VITE_API_FOOTBALL_KEY || '';
+const USE_MOCK = import.meta.env.VITE_MOCK === 'true';
 
 const LEAGUE_ID = 1;
 const SEASON = 2026;
@@ -17,6 +20,11 @@ async function fetchApi<T>(
   endpoint: string,
   params: Record<string, string | number> = {},
 ): Promise<T> {
+  if (USE_MOCK) {
+    const data = mockFetch<T>(endpoint, params);
+    return data ?? ([] as T);
+  }
+
   const url = new URL(endpoint, API_BASE);
   Object.entries(params).forEach(([key, value]) => {
     url.searchParams.set(key, String(value));

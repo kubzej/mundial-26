@@ -10,6 +10,7 @@ interface LiveState {
   todayFinished: Fixture[];
   isMatchDay: boolean;
   isLoading: boolean;
+  isFetching: boolean;
   refetch: () => void;
 }
 
@@ -23,12 +24,14 @@ export function useLiveState(): LiveState {
   const {
     data: liveData,
     isLoading: liveLoading,
+    isFetching: liveFetching,
     refetch: refetchLive,
   } = useLiveFixtures();
 
   const {
     data: todayData,
     isLoading: todayLoading,
+    isFetching: todayFetching,
     refetch: refetchToday,
   } = useFixturesByDate(todayStr);
 
@@ -55,6 +58,7 @@ export function useLiveState(): LiveState {
     todayFinished,
     isMatchDay,
     isLoading: liveLoading || todayLoading,
+    isFetching: liveFetching || todayFetching,
     refetch,
   };
 }
