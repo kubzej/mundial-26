@@ -55,7 +55,7 @@ export function Stats() {
       <PageHeader title="Statistiky" />
 
       {/* Tabs */}
-      <div className="flex gap-2 px-4 py-3 overflow-x-auto">
+      <div className="flex gap-2 px-4 py-3 overflow-x-auto lg:flex-wrap lg:overflow-visible">
         {TABS.map((t) => (
           <button
             key={t.key}
@@ -159,7 +159,15 @@ function PlayerRow({
 
   return (
     <button
-      onClick={() => navigate(`/player/${info.id}`)}
+      onClick={() =>
+        navigate(`/player/${info.id}`, {
+          state: {
+            name: info.name,
+            photo: info.photo,
+            team: team ? { name: team.name, logo: team.logo } : undefined,
+          },
+        })
+      }
       className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
       style={{
         borderBottom: isLast ? 'none' : '1px solid var(--color-divider)',

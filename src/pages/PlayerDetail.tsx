@@ -1,26 +1,65 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { usePlayer } from '../hooks/useApi';
 import { PageHeader } from '../components/PageHeader';
 import { Skeleton } from '../components/Skeleton';
 import { TeamLogo } from '../components/TeamLogo';
 
+// Minimal player info callers can pass via router state, so the page renders
+// immediately even before the (coverage-gated) /players stats endpoint returns.
+export interface PlayerNavState {
+  name?: string;
+  photo?: string;
+  number?: number | null;
+  position?: string;
+  age?: number;
+  team?: { name: string; logo: string };
+}
+
 export function PlayerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const playerId = id ? parseInt(id) : undefined;
+  const nav = (location.state as PlayerNavState | null) ?? undefined;
 
   const { data, isLoading } = usePlayer(playerId);
   const entry = data?.[0];
-  const player = entry?.player;
+  const apiPlayer = entry?.player;
   const stats = entry?.statistics?.[0];
 
-  if (isLoading || !player) {
+  // Prefer API data; fall back to the info passed via navigation.
+  const name = apiPlayer?.name ?? nav?.name;
+  const photo = apiPlayer?.photo ?? nav?.photo;
+  const nationality = apiPlayer?.nationality;
+  const age = apiPlayer?.age ?? nav?.age;
+  const height = apiPlayer?.height ?? null;
+  const position = stats?.games.position ?? nav?.position;
+  const team = stats?.team ?? nav?.team;
+  const hasStats = !!stats;
+
+  // Only show the skeleton while loading with nothing to render yet.
+  if (isLoading && !nav) {
     return (
       <div>
         <PageHeader title="Hráč" back={() => navigate(-1)} />
         <div className="px-4 pt-4 flex flex-col gap-3">
           <Skeleton height={120} rounded="var(--radius-lg)" />
           <Skeleton height={200} rounded="var(--radius-lg)" />
+        </div>
+      </div>
+    );
+  }
+
+  // Loaded but no data at all (e.g. stats not yet published) and no fallback.
+  if (!isLoading && !name) {
+    return (
+      <div>
+        <PageHeader title="Hráč" back={() => navigate(-1)} />
+        <div
+          className="mx-4 mt-8 py-12 text-center text-sm"
+          style={{ color: 'var(--color-text-muted)' }}
+        >
+          Profil hráče zatím není k dispozici
         </div>
       </div>
     );
@@ -37,7 +76,7 @@ export function PlayerDetail() {
 
   return (
     <div>
-      <PageHeader title={player.name} back={() => navigate(-1)} />
+      <PageHeader title={name ?? 'Hráč'} back={() => navigate(-1)} />
 
       {/* Player header */}
       <div
@@ -51,8 +90,8 @@ export function PlayerDetail() {
       >
         <div className="flex items-center gap-4">
           <img
-            src={player.photo}
-            alt={player.name}
+            src={photo}
+            alt={name}
             className="w-20 h-20 rounded-2xl object-cover shrink-0"
             style={{ background: 'var(--color-surface-raised)' }}
             onError={(e) => {
@@ -64,14 +103,14 @@ export function PlayerDetail() {
               className="text-xl font-bold"
               style={{ color: 'var(--color-text)' }}
             >
-              {player.name}
+              {name}
             </h2>
             <div className="flex items-center gap-2 mt-1">
-              {stats?.team && (
+              {team && (
                 <>
                   <TeamLogo
-                    logo={stats.team.logo}
-                    name={stats.team.name}
+                    logo={team.logo}
+                    name={team.name}
                     size="sm"
                     className="w-5 h-5"
                   />
@@ -79,23 +118,37 @@ export function PlayerDetail() {
                     className="text-sm"
                     style={{ color: 'var(--color-text-muted)' }}
                   >
-                    {stats.team.name}
+                    {team.name}
                   </span>
                 </>
               )}
             </div>
             <div className="flex flex-wrap gap-3 mt-2">
-              {stats?.games.position && <Badge label={stats.games.position} />}
-              {player.nationality && <Badge label={player.nationality} />}
-              {player.age && <Badge label={`${player.age} let`} />}
-              {player.height && <Badge label={player.height} />}
+              {position && <Badge label={position} />}
+              {nationality && <Badge label={nationality} />}
+              {age && <Badge label={`${age} let`} />}
+              {height && <Badge label={height} />}
             </div>
           </div>
         </div>
       </div>
 
       {/* Stats grid */}
-      <div className="mx-4 mt-3">
+      {!hasStats ? (
+        <div
+          className="mx-4 mt-3 py-8 text-center text-sm"
+          style={{
+            background: 'var(--color-surface)',
+            borderRadius: 'var(--radius-lg)',
+            boxShadow: 'var(--shadow-card)',
+            color: 'var(--color-text-muted)',
+          }}
+        >
+          Statistiky budou dostupné po začátku turnaje
+        </div>
+      ) : (
+        <>
+          <div className="mx-4 mt-3">
         <div
           className="grid grid-cols-3"
           style={{
@@ -158,6 +211,8 @@ export function PlayerDetail() {
             {parseFloat(stats.games.rating).toFixed(1)}
           </span>
         </div>
+          )}
+        </>
       )}
 
       <div className="h-6" />

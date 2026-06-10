@@ -1,14 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  useFixture,
-  useFixtureEvents,
-  useFixtureLineups,
-  useFixtureStatistics,
-  useFixturePlayerStats,
-  usePrediction,
-  useHeadToHead,
-} from '../hooks/useApi';
+import { useFixture, useHeadToHead, useOdds } from '../hooks/useApi';
 import { PageHeader } from '../components/PageHeader';
 import { Skeleton } from '../components/Skeleton';
 import { TeamLogo } from '../components/TeamLogo';
@@ -19,6 +11,7 @@ import type {
   Lineup,
   FixtureStatistic,
   FixturePlayerStats,
+  OddsResponse,
 } from '../api/types';
 import { formatDate } from '../lib/format';
 
@@ -40,21 +33,8 @@ export function MatchDetail() {
   // For pre-match fixtures the only available tab is 'preview'
   const effectiveTab: Tab = isPreMatch ? 'preview' : activeTab;
 
-  const { data: events } = useFixtureEvents(
-    finished || live ? fixtureId : undefined,
-  );
-  const { data: lineups } = useFixtureLineups(
-    finished || live ? fixtureId : undefined,
-  );
-  const { data: fixtureStats } = useFixtureStatistics(
-    finished || live ? fixtureId : undefined,
-  );
-  const { data: playerStats } = useFixturePlayerStats(
-    finished ? fixtureId : undefined,
-  );
-  const { data: predictions } = usePrediction(
-    isPreMatch ? fixtureId : undefined,
-  );
+  // events / lineups / statistics / players come embedded in the fixture call.
+  const { data: odds } = useOdds(isPreMatch ? fixtureId : undefined);
   const { data: h2h } = useHeadToHead(
     isPreMatch ? fixture?.teams.home.id : undefined,
     isPreMatch ? fixture?.teams.away.id : undefined,
@@ -95,7 +75,7 @@ export function MatchDetail() {
 
       {/* Tabs */}
       {tabs.length > 1 && (
-        <div className="flex gap-0 px-4 pt-4 mb-1 overflow-x-auto">
+        <div className="flex gap-0 px-4 pt-4 mb-1 overflow-x-auto lg:flex-wrap lg:overflow-visible">
           {tabs.map((t) => (
             <button
               key={t.key}
@@ -121,26 +101,19 @@ export function MatchDetail() {
       {/* Tab content */}
       <div className="px-4 pb-6 pt-3">
         {effectiveTab === 'events' && (
-          <EventsTimeline
-            events={events || fixture.events || []}
-            fixture={fixture}
-          />
+          <EventsTimeline events={fixture.events || []} fixture={fixture} />
         )}
         {effectiveTab === 'lineups' && (
-          <LineupsView lineups={lineups || fixture.lineups || []} />
+          <LineupsView lineups={fixture.lineups || []} />
         )}
         {effectiveTab === 'stats' && (
-          <StatsView stats={fixtureStats || fixture.statistics || []} />
+          <StatsView stats={fixture.statistics || []} />
         )}
         {effectiveTab === 'ratings' && (
-          <RatingsView playerStats={playerStats || fixture.players || []} />
+          <RatingsView playerStats={fixture.players || []} />
         )}
         {effectiveTab === 'preview' && (
-          <PreviewView
-            prediction={predictions?.[0]}
-            h2h={h2h || []}
-            fixture={fixture}
-          />
+          <PreviewView odds={odds?.[0]} h2h={h2h || []} />
         )}
       </div>
     </div>
@@ -148,6 +121,7 @@ export function MatchDetail() {
 }
 
 function MatchHeader({ fixture }: { fixture: Fixture }) {
+  const navigate = useNavigate();
   const { teams, goals, fixture: info } = fixture;
   const live = isLive(info.status.short);
   const finished = isFinished(info.status.short);
@@ -164,7 +138,10 @@ function MatchHeader({ fixture }: { fixture: Fixture }) {
     >
       <div className="flex items-center justify-between">
         {/* Home */}
-        <div className="flex flex-col items-center gap-2 w-28">
+        <button
+          onClick={() => navigate(`/team/${teams.home.id}`)}
+          className="flex flex-col items-center gap-2 w-28"
+        >
           <TeamLogo logo={teams.home.logo} name={teams.home.name} size="xl" />
           <span
             className="text-sm font-semibold text-center leading-tight"
@@ -172,7 +149,7 @@ function MatchHeader({ fixture }: { fixture: Fixture }) {
           >
             {teams.home.name}
           </span>
-        </div>
+        </button>
 
         {/* Score */}
         <div className="flex flex-col items-center gap-1">
@@ -234,7 +211,10 @@ function MatchHeader({ fixture }: { fixture: Fixture }) {
         </div>
 
         {/* Away */}
-        <div className="flex flex-col items-center gap-2 w-28">
+        <button
+          onClick={() => navigate(`/team/${teams.away.id}`)}
+          className="flex flex-col items-center gap-2 w-28"
+        >
           <TeamLogo logo={teams.away.logo} name={teams.away.name} size="xl" />
           <span
             className="text-sm font-semibold text-center leading-tight"
@@ -242,7 +222,7 @@ function MatchHeader({ fixture }: { fixture: Fixture }) {
           >
             {teams.away.name}
           </span>
-        </div>
+        </button>
       </div>
 
       {/* Venue */}
@@ -427,7 +407,16 @@ function LineupsView({ lineups }: { lineups: Lineup[] }) {
           {lineup.startXI.map(({ player }, idx) => (
             <button
               key={player.id}
-              onClick={() => navigate(`/player/${player.id}`)}
+              onClick={() =>
+                navigate(`/player/${player.id}`, {
+                  state: {
+                    name: player.name,
+                    number: player.number,
+                    position: player.pos ?? undefined,
+                    team: { name: lineup.team.name, logo: lineup.team.logo },
+                  },
+                })
+              }
               className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
               style={{
                 borderBottom:
@@ -476,7 +465,16 @@ function LineupsView({ lineups }: { lineups: Lineup[] }) {
               {lineup.substitutes.map(({ player }, idx) => (
                 <button
                   key={player.id}
-                  onClick={() => navigate(`/player/${player.id}`)}
+                  onClick={() =>
+                    navigate(`/player/${player.id}`, {
+                      state: {
+                        name: player.name,
+                        number: player.number,
+                        position: player.pos ?? undefined,
+                        team: { name: lineup.team.name, logo: lineup.team.logo },
+                      },
+                    })
+                  }
                   className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
                   style={{
                     borderBottom:
@@ -683,7 +681,19 @@ function RatingsView({ playerStats }: { playerStats: FixturePlayerStats[] }) {
             return (
               <button
                 key={p.player.id}
-                onClick={() => navigate(`/player/${p.player.id}`)}
+                onClick={() =>
+                  navigate(`/player/${p.player.id}`, {
+                    state: {
+                      name: p.player.name,
+                      photo: p.player.photo,
+                      position: p.statistics[0]?.games.position,
+                      team: {
+                        name: teamStats.team.name,
+                        logo: teamStats.team.logo,
+                      },
+                    },
+                  })
+                }
                 className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
                 style={{
                   borderBottom:
@@ -736,18 +746,20 @@ function RatingsView({ playerStats }: { playerStats: FixturePlayerStats[] }) {
 }
 
 function PreviewView({
-  prediction,
+  odds,
   h2h,
-  fixture,
 }: {
-  prediction: any;
+  odds?: OddsResponse;
   h2h: Fixture[];
-  fixture: Fixture;
 }) {
+  const matchWinnerOdds = odds?.bookmakers?.[0]?.bets.find(
+    (b) => b.name === 'Match Winner',
+  )?.values;
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Prediction */}
-      {prediction && (
+      {/* Odds (1X2) */}
+      {matchWinnerOdds && matchWinnerOdds.length >= 3 && (
         <div
           style={{
             background: 'var(--color-surface)',
@@ -760,71 +772,34 @@ function PreviewView({
             className="text-sm font-semibold mb-3"
             style={{ color: 'var(--color-text)' }}
           >
-            Predikce
+            Kurzy
           </h3>
-
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex gap-2">
             {[
-              {
-                label: fixture.teams.home.name,
-                pct: prediction.predictions.percent.home,
-              },
-              { label: 'Remíza', pct: prediction.predictions.percent.draw },
-              {
-                label: fixture.teams.away.name,
-                pct: prediction.predictions.percent.away,
-              },
-            ].map((item) => (
+              { label: '1', odd: matchWinnerOdds.find((v) => v.value === 'Home')?.odd },
+              { label: 'X', odd: matchWinnerOdds.find((v) => v.value === 'Draw')?.odd },
+              { label: '2', odd: matchWinnerOdds.find((v) => v.value === 'Away')?.odd },
+            ].map((o) => (
               <div
-                key={item.label}
-                className="flex-1 flex flex-col items-center"
+                key={o.label}
+                className="flex-1 flex flex-col items-center py-2 rounded-xl"
+                style={{ background: 'var(--color-surface-raised)' }}
               >
                 <span
-                  className="text-lg font-bold font-score"
-                  style={{ color: 'var(--color-green)' }}
-                >
-                  {item.pct}
-                </span>
-                <span
-                  className="text-[10px] text-center"
+                  className="text-[10px] font-semibold"
                   style={{ color: 'var(--color-text-muted)' }}
                 >
-                  {item.label}
+                  {o.label}
+                </span>
+                <span
+                  className="text-lg font-bold font-score"
+                  style={{ color: 'var(--color-text)' }}
+                >
+                  {o.odd ?? '–'}
                 </span>
               </div>
             ))}
           </div>
-
-          {/* Bar */}
-          <div className="flex h-2 rounded-full overflow-hidden">
-            <div
-              style={{
-                width: prediction.predictions.percent.home,
-                background: 'var(--color-green)',
-              }}
-            />
-            <div
-              style={{
-                width: prediction.predictions.percent.draw,
-                background: '#94a3b8',
-              }}
-            />
-            <div
-              style={{
-                width: prediction.predictions.percent.away,
-                background: '#3b82f6',
-              }}
-            />
-          </div>
-
-          {prediction.predictions.advice && (
-            <p
-              className="mt-3 text-xs"
-              style={{ color: 'var(--color-text-muted)' }}
-            >
-              {prediction.predictions.advice}
-            </p>
-          )}
         </div>
       )}
 
@@ -889,7 +864,7 @@ function PreviewView({
         </div>
       )}
 
-      {!prediction && !h2h.length && (
+      {!matchWinnerOdds && !h2h.length && (
         <div
           className="py-8 text-center text-sm"
           style={{ color: 'var(--color-text-muted)' }}

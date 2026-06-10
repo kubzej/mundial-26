@@ -13,6 +13,7 @@ const KNOCKOUT_ROUNDS = [
   'Round of 16',
   'Quarter-finals',
   'Semi-finals',
+  '3rd Place Final',
   'Final',
 ];
 
@@ -49,7 +50,7 @@ export function Bracket() {
       ) : (
         <div>
           {/* Round selector */}
-          <div className="flex gap-2 px-4 py-3 overflow-x-auto">
+          <div className="flex gap-2 px-4 py-3 overflow-x-auto lg:flex-wrap lg:overflow-visible">
             {availableKnockoutRounds.map((r) => (
               <button
                 key={r}

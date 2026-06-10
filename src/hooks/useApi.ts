@@ -1,17 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchApi, LEAGUE_ID, SEASON } from '../api/client';
+import { isLive } from '../api/types';
 import type {
   Fixture,
   StandingsResponse,
   PlayerResponse,
+  SquadResponse,
   TopScorerResponse,
   Coach,
   Injury,
-  Prediction,
-  FixtureEvent,
-  Lineup,
-  FixtureStatistic,
-  FixturePlayerStats,
+  OddsResponse,
 } from '../api/types';
 
 // -- Fixtures --
@@ -52,56 +50,19 @@ export function useLiveFixtures() {
   });
 }
 
+// A single /fixtures?id= request embeds events, lineups, statistics and
+// players, so the match detail needs only this one call (not 4 extra ones).
+// Self-polls every 15s while the match is live.
 export function useFixture(id: number | undefined) {
   return useQuery({
     queryKey: ['fixture', id],
     queryFn: () => fetchApi<Fixture[]>('/fixtures', { id: id! }),
     enabled: !!id,
     staleTime: 30 * 1000,
-  });
-}
-
-export function useFixtureEvents(fixtureId: number | undefined) {
-  return useQuery({
-    queryKey: ['fixture', fixtureId, 'events'],
-    queryFn: () =>
-      fetchApi<FixtureEvent[]>('/fixtures/events', { fixture: fixtureId! }),
-    enabled: !!fixtureId,
-    staleTime: 15 * 1000,
-  });
-}
-
-export function useFixtureLineups(fixtureId: number | undefined) {
-  return useQuery({
-    queryKey: ['fixture', fixtureId, 'lineups'],
-    queryFn: () =>
-      fetchApi<Lineup[]>('/fixtures/lineups', { fixture: fixtureId! }),
-    enabled: !!fixtureId,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useFixtureStatistics(fixtureId: number | undefined) {
-  return useQuery({
-    queryKey: ['fixture', fixtureId, 'statistics'],
-    queryFn: () =>
-      fetchApi<FixtureStatistic[]>('/fixtures/statistics', {
-        fixture: fixtureId!,
-      }),
-    enabled: !!fixtureId,
-    staleTime: 30 * 1000,
-  });
-}
-
-export function useFixturePlayerStats(fixtureId: number | undefined) {
-  return useQuery({
-    queryKey: ['fixture', fixtureId, 'players'],
-    queryFn: () =>
-      fetchApi<FixturePlayerStats[]>('/fixtures/players', {
-        fixture: fixtureId!,
-      }),
-    enabled: !!fixtureId,
-    staleTime: 60 * 1000,
+    refetchInterval: (query) => {
+      const fixture = query.state.data?.[0];
+      return fixture && isLive(fixture.fixture.status.short) ? 15 * 1000 : false;
+    },
   });
 }
 
@@ -247,6 +208,20 @@ export function usePlayer(id: number | undefined) {
   });
 }
 
+// -- Squad --
+// Uses /players/squads (team-scoped) which is available pre-tournament,
+// unlike /players?league=1&season=2026 (gated by coverage.players).
+
+export function useSquad(teamId: number | undefined) {
+  return useQuery({
+    queryKey: ['squad', teamId],
+    queryFn: () =>
+      fetchApi<SquadResponse[]>('/players/squads', { team: teamId! }),
+    enabled: !!teamId,
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
 // -- Coach --
 
 export function useCoach(teamId: number | undefined) {
@@ -269,13 +244,13 @@ export function useInjuries() {
   });
 }
 
-// -- Predictions --
+// -- Odds --
+// Pre-match 1X2 odds. API only serves odds within 7 days of kickoff.
 
-export function usePrediction(fixtureId: number | undefined) {
+export function useOdds(fixtureId: number | undefined) {
   return useQuery({
-    queryKey: ['prediction', fixtureId],
-    queryFn: () =>
-      fetchApi<Prediction[]>('/predictions', { fixture: fixtureId! }),
+    queryKey: ['odds', fixtureId],
+    queryFn: () => fetchApi<OddsResponse[]>('/odds', { fixture: fixtureId! }),
     enabled: !!fixtureId,
     staleTime: 60 * 60 * 1000,
   });

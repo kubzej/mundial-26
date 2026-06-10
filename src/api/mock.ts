@@ -10,7 +10,7 @@ import type {
   FixturePlayerStats,
   TopScorerResponse,
   Coach,
-  Prediction,
+  SquadResponse,
 } from './types';
 
 // ---------------------------------------------------------------------------
@@ -772,6 +772,88 @@ export const MOCK_TOP_YELLOW: TopScorerResponse[] =
 export const MOCK_TOP_RED: TopScorerResponse[] = [];
 
 // ---------------------------------------------------------------------------
+// Squads (/players/squads?team=)
+// ---------------------------------------------------------------------------
+
+function makeSquadPlayer(
+  id: number,
+  name: string,
+  number: number,
+  position: string,
+  age: number,
+): SquadResponse['players'][number] {
+  return { id, name, age, number, position, photo: photo(id) };
+}
+
+function makeSquad(
+  teamId: number,
+  teamName: string,
+  players: SquadResponse['players'],
+): SquadResponse {
+  return {
+    team: { id: teamId, name: teamName, logo: logo(String(teamId)) },
+    players,
+  };
+}
+
+const GENERIC_SQUAD = (teamId: number, teamName: string): SquadResponse =>
+  makeSquad(teamId, teamName, [
+    makeSquadPlayer(teamId * 100 + 1, 'Goalkeeper One', 1, 'Goalkeeper', 29),
+    makeSquadPlayer(teamId * 100 + 2, 'Goalkeeper Two', 12, 'Goalkeeper', 26),
+    makeSquadPlayer(teamId * 100 + 3, 'Defender One', 2, 'Defender', 27),
+    makeSquadPlayer(teamId * 100 + 4, 'Defender Two', 3, 'Defender', 31),
+    makeSquadPlayer(teamId * 100 + 5, 'Defender Three', 4, 'Defender', 24),
+    makeSquadPlayer(teamId * 100 + 6, 'Defender Four', 5, 'Defender', 28),
+    makeSquadPlayer(teamId * 100 + 7, 'Midfielder One', 6, 'Midfielder', 25),
+    makeSquadPlayer(teamId * 100 + 8, 'Midfielder Two', 8, 'Midfielder', 23),
+    makeSquadPlayer(teamId * 100 + 9, 'Midfielder Three', 10, 'Midfielder', 30),
+    makeSquadPlayer(teamId * 100 + 10, 'Forward One', 9, 'Attacker', 26),
+    makeSquadPlayer(teamId * 100 + 11, 'Forward Two', 11, 'Attacker', 22),
+  ]);
+
+export const MOCK_SQUADS: Record<number, SquadResponse> = {
+  6: makeSquad(6, 'Brazil', [
+    makeSquadPlayer(105, 'Alisson', 1, 'Goalkeeper', 31),
+    makeSquadPlayer(106, 'Ederson', 12, 'Goalkeeper', 30),
+    makeSquadPlayer(104, 'Marquinhos', 4, 'Defender', 30),
+    makeSquadPlayer(107, 'Éder Militão', 3, 'Defender', 26),
+    makeSquadPlayer(108, 'Danilo', 2, 'Defender', 32),
+    makeSquadPlayer(103, 'Casemiro', 5, 'Midfielder', 32),
+    makeSquadPlayer(109, 'Bruno Guimarães', 8, 'Midfielder', 26),
+    makeSquadPlayer(110, 'Lucas Paquetá', 10, 'Midfielder', 27),
+    makeSquadPlayer(101, 'Vinicius Jr.', 7, 'Attacker', 24),
+    makeSquadPlayer(102, 'Rodrygo', 11, 'Attacker', 23),
+    makeSquadPlayer(111, 'Raphinha', 19, 'Attacker', 28),
+  ]),
+  26: makeSquad(26, 'Argentina', [
+    makeSquadPlayer(205, 'Emiliano Martínez', 23, 'Goalkeeper', 32),
+    makeSquadPlayer(206, 'Gerónimo Rulli', 12, 'Goalkeeper', 32),
+    makeSquadPlayer(204, 'Lisandro Martínez', 25, 'Defender', 26),
+    makeSquadPlayer(207, 'Cuti Romero', 13, 'Defender', 26),
+    makeSquadPlayer(208, 'Nicolás Tagliafico', 3, 'Defender', 32),
+    makeSquadPlayer(203, 'Rodrigo De Paul', 7, 'Midfielder', 30),
+    makeSquadPlayer(209, 'Enzo Fernández', 24, 'Midfielder', 23),
+    makeSquadPlayer(210, 'Alexis Mac Allister', 20, 'Midfielder', 26),
+    makeSquadPlayer(201, 'Lionel Messi', 10, 'Attacker', 38),
+    makeSquadPlayer(202, 'Julián Álvarez', 9, 'Attacker', 25),
+    makeSquadPlayer(211, 'Lautaro Martínez', 22, 'Attacker', 27),
+  ]),
+  25: makeSquad(25, 'Germany', [
+    makeSquadPlayer(900, 'Manuel Neuer', 1, 'Goalkeeper', 39),
+    makeSquadPlayer(911, 'Marc-André ter Stegen', 12, 'Goalkeeper', 33),
+    makeSquadPlayer(902, 'Antonio Rüdiger', 2, 'Defender', 32),
+    makeSquadPlayer(903, 'Nico Schlotterbeck', 4, 'Defender', 25),
+    makeSquadPlayer(904, 'David Raum', 3, 'Defender', 27),
+    makeSquadPlayer(905, 'Joshua Kimmich', 6, 'Midfielder', 30),
+    makeSquadPlayer(906, 'Leon Goretzka', 8, 'Midfielder', 30),
+    makeSquadPlayer(908, 'Florian Wirtz', 10, 'Midfielder', 22),
+    makeSquadPlayer(909, 'Jamal Musiala', 14, 'Attacker', 22),
+    makeSquadPlayer(907, 'Leroy Sané', 19, 'Attacker', 29),
+    makeSquadPlayer(910, 'Thomas Müller', 13, 'Attacker', 35),
+  ]),
+};
+
+// ---------------------------------------------------------------------------
 // Coach
 // ---------------------------------------------------------------------------
 
@@ -823,45 +905,31 @@ export const MOCK_COACHES: Record<number, Coach[]> = {
 };
 
 // ---------------------------------------------------------------------------
-// Prediction for match 1004 (ESP vs NET, upcoming)
+// Odds for match 1004 (ESP vs NET, upcoming)
 // ---------------------------------------------------------------------------
 
-export const MOCK_PREDICTIONS: Prediction[] = [
+export const MOCK_ODDS: import('./types').OddsResponse[] = [
   {
-    predictions: {
-      winner: { id: 9, name: 'Spain', comment: 'Strong favorites at home' },
-      win_or_draw: true,
-      under_over: null,
-      goals: { home: '1.5', away: '0.9' },
-      advice: 'Spain to win or draw',
-      percent: { home: '52%', draw: '27%', away: '21%' },
-    },
-    league: {
-      id: 1,
-      name: 'FIFA World Cup',
-      country: 'World',
-      logo: '',
-      flag: null,
-      season: 2026,
-    },
-    teams: {
-      home: {
-        id: 9,
-        name: 'Spain',
-        logo: logo('9'),
-        last_5: null,
-        league: null,
+    league: { id: 1, season: 2026 },
+    fixture: { id: 1004 },
+    update: new Date().toISOString(),
+    bookmakers: [
+      {
+        id: 8,
+        name: 'Bet365',
+        bets: [
+          {
+            id: 1,
+            name: 'Match Winner',
+            values: [
+              { value: 'Home', odd: '1.85' },
+              { value: 'Draw', odd: '3.40' },
+              { value: 'Away', odd: '4.20' },
+            ],
+          },
+        ],
       },
-      away: {
-        id: 1118,
-        name: 'Netherlands',
-        logo: logo('1118'),
-        last_5: null,
-        league: null,
-      },
-    },
-    comparison: {},
-    h2h: [],
+    ],
   },
 ];
 
@@ -899,9 +967,15 @@ export function mockFetch<T>(
       ['1H', 'HT', '2H', 'ET', 'P', 'BT'].includes(f.fixture.status.short),
     ) as T;
   }
-  // Fixture — single
+  // Fixture — single (embeds events/lineups/statistics/players like the real API)
   if (endpoint === '/fixtures' && id) {
-    return MOCK_FIXTURES.filter((f) => f.fixture.id === id) as T;
+    return MOCK_FIXTURES.filter((f) => f.fixture.id === id).map((f) => ({
+      ...f,
+      events: id === 1003 ? MOCK_EVENTS : [],
+      lineups: id === 1003 ? MOCK_LINEUPS : [],
+      statistics: id === 1003 ? MOCK_STATISTICS : [],
+      players: id === 1001 ? MOCK_PLAYER_STATS : [],
+    })) as T;
   }
   // H2H
   if (endpoint === '/fixtures/headtohead') {
@@ -953,6 +1027,17 @@ export function mockFetch<T>(
       URU,
     ].map((t) => ({ team: t, venue: {} })) as T;
   }
+  // Squad
+  if (endpoint === '/players/squads') {
+    const known = MOCK_SQUADS[teamId];
+    const fixtureTeam = MOCK_FIXTURES.flatMap((f) => [
+      f.teams.home,
+      f.teams.away,
+    ]).find((t) => t.id === teamId);
+    return [
+      known ?? GENERIC_SQUAD(teamId, fixtureTeam?.name ?? 'Team'),
+    ] as T;
+  }
   // Top scorers/assists/cards
   if (endpoint === '/players/topscorers') return MOCK_TOP_SCORERS as T;
   if (endpoint === '/players/topassists') return MOCK_TOP_ASSISTS as T;
@@ -967,9 +1052,9 @@ export function mockFetch<T>(
   if (endpoint === '/coachs') {
     return (MOCK_COACHES[teamId] || []) as T;
   }
-  // Predictions
-  if (endpoint === '/predictions') {
-    return MOCK_PREDICTIONS as T;
+  // Odds
+  if (endpoint === '/odds') {
+    return MOCK_ODDS as T;
   }
 
   return [] as T;

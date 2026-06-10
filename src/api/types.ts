@@ -351,6 +351,28 @@ export interface PlayerResponse {
   statistics: PlayerStatistics[];
 }
 
+// -- Squads (/players/squads?team=) --
+// Team-scoped, NOT gated by the league coverage flag, so it is populated
+// before the tournament starts (unlike /players?league=1&season=2026).
+
+export interface SquadPlayer {
+  id: number;
+  name: string;
+  age: number;
+  number: number | null;
+  position: string;
+  photo: string;
+}
+
+export interface SquadResponse {
+  team: {
+    id: number;
+    name: string;
+    logo: string;
+  };
+  players: SquadPlayer[];
+}
+
 // -- Top Scorers / Assists / Cards --
 
 export type TopScorerResponse = PlayerResponse;
@@ -415,43 +437,35 @@ export interface Injury {
   };
 }
 
-// -- Predictions --
+// -- Odds (/odds?fixture=) --
 
-export interface Prediction {
-  predictions: {
-    winner: { id: number; name: string; comment: string } | null;
-    win_or_draw: boolean;
-    under_over: string | null;
-    goals: { home: string; away: string };
-    advice: string;
-    percent: { home: string; draw: string; away: string };
-  };
+export interface OddValue {
+  value: string;
+  odd: string;
+}
+
+export interface OddsBet {
+  id: number;
+  name: string;
+  values: OddValue[];
+}
+
+export interface OddsBookmaker {
+  id: number;
+  name: string;
+  bets: OddsBet[];
+}
+
+export interface OddsResponse {
   league: {
     id: number;
-    name: string;
-    country: string;
-    logo: string;
-    flag: string | null;
     season: number;
   };
-  teams: {
-    home: {
-      id: number;
-      name: string;
-      logo: string;
-      last_5: unknown;
-      league: unknown;
-    };
-    away: {
-      id: number;
-      name: string;
-      logo: string;
-      last_5: unknown;
-      league: unknown;
-    };
+  fixture: {
+    id: number;
   };
-  comparison: Record<string, { home: string; away: string }>;
-  h2h: Fixture[];
+  update: string;
+  bookmakers: OddsBookmaker[];
 }
 
 // -- Fixture status helpers --

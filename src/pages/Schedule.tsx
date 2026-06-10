@@ -59,7 +59,7 @@ export function Schedule() {
       />
 
       {/* Round filter */}
-      <div className="flex gap-2 px-4 py-3 overflow-x-auto">
+      <div className="flex gap-2 px-4 py-3 overflow-x-auto lg:flex-wrap lg:overflow-visible">
         <Chip
           label="Podle dne"
           active={activeRound === null}
@@ -75,11 +75,11 @@ export function Schedule() {
         ))}
       </div>
 
-      {/* Date pills */}
+      {/* Date pills — mobile only; desktop shows all days grouped below */}
       {!activeRound && (
         <div
           ref={dateScrollRef}
-          className="flex gap-2 px-4 pb-3 overflow-x-auto"
+          className="flex gap-2 px-4 pb-3 overflow-x-auto lg:hidden"
         >
           {availableDates.map((d) => {
             const date = new Date(d + 'T12:00:00');
@@ -135,30 +135,83 @@ export function Schedule() {
               <MatchCardSkeleton key={i} />
             ))}
           </div>
-        ) : fixturesToShow.length === 0 ? (
-          <EmptyState
-            title="Žádné zápasy"
-            subtitle="Pro tento den nejsou naplánované žádné zápasy"
-          />
+        ) : activeRound ? (
+          // Round filter: same on every viewport
+          fixturesToShow.length === 0 ? (
+            <EmptyState title="Žádné zápasy" subtitle="Zatím bez zápasů" />
+          ) : (
+            <FixtureGroups groups={Object.entries(groupedByRound)} />
+          )
         ) : (
-          Object.entries(groupedByRound).map(([round, fixtures]) => (
-            <div key={round} className="mb-5">
-              <p
-                className="text-xs font-semibold mb-2 uppercase tracking-wide"
-                style={{ color: 'var(--color-text-muted)' }}
-              >
-                {ROUND_LABELS[round] || round}
-              </p>
-              <div className="flex flex-col gap-2">
-                {fixtures.map((f) => (
-                  <MatchCard key={f.fixture.id} fixture={f} />
-                ))}
-              </div>
+          <>
+            {/* Mobile: only the selected day */}
+            <div className="lg:hidden">
+              {fixturesToShow.length === 0 ? (
+                <EmptyState
+                  title="Žádné zápasy"
+                  subtitle="Pro tento den nejsou naplánované žádné zápasy"
+                />
+              ) : (
+                <FixtureGroups groups={Object.entries(groupedByRound)} />
+              )}
             </div>
-          ))
+
+            {/* Desktop: all match days grouped by date */}
+            <div className="hidden lg:flex lg:flex-col lg:gap-6">
+              {availableDates.map((d) => {
+                const dayFixtures = byDate.get(d) || [];
+                if (!dayFixtures.length) return null;
+                return (
+                  <div key={d}>
+                    <p
+                      className="text-sm font-semibold mb-2 capitalize"
+                      style={{ color: 'var(--color-text)' }}
+                    >
+                      {fullDateLabel(d)}
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {dayFixtures.map((f) => (
+                        <MatchCard key={f.fixture.id} fixture={f} />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
     </div>
+  );
+}
+
+function fullDateLabel(d: string): string {
+  return new Date(d + 'T12:00:00').toLocaleDateString('cs-CZ', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
+function FixtureGroups({ groups }: { groups: [string, Fixture[]][] }) {
+  return (
+    <>
+      {groups.map(([round, fixtures]) => (
+        <div key={round} className="mb-5">
+          <p
+            className="text-xs font-semibold mb-2 uppercase tracking-wide"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            {ROUND_LABELS[round] || round}
+          </p>
+          <div className="flex flex-col gap-2">
+            {fixtures.map((f) => (
+              <MatchCard key={f.fixture.id} fixture={f} />
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 

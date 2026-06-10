@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useFixtures, useCoach } from '../hooks/useApi';
+import { useFixtures, useCoach, useSquad } from '../hooks/useApi';
 import { PageHeader } from '../components/PageHeader';
 import { Skeleton } from '../components/Skeleton';
 import { TeamLogo } from '../components/TeamLogo';
@@ -16,6 +16,8 @@ export function TeamDetail() {
 
   const { data: allFixtures, isLoading: fixturesLoading } = useFixtures();
   const { data: coaches } = useCoach(teamId);
+  const { data: squads, isLoading: squadLoading } = useSquad(teamId);
+  const squad = squads?.[0]?.players ?? [];
 
   const teamFixtures =
     allFixtures && teamId ? getTeamFixtures(allFixtures, teamId) : [];
@@ -25,6 +27,20 @@ export function TeamDetail() {
       : teamFixtures[0]?.teams.away;
 
   const coach = coaches?.[0];
+
+  const POSITION_ORDER = ['Goalkeeper', 'Defender', 'Midfielder', 'Attacker'];
+  const POSITION_LABELS: Record<string, string> = {
+    Goalkeeper: 'Brankáři',
+    Defender: 'Obránci',
+    Midfielder: 'Záložníci',
+    Attacker: 'Útočníci',
+  };
+  const squadByPosition = POSITION_ORDER.map((pos) => ({
+    pos,
+    players: squad
+      .filter((p) => p.position === pos)
+      .sort((a, b) => (a.number ?? 99) - (b.number ?? 99)),
+  })).filter((g) => g.players.length > 0);
 
   const played = teamFixtures.filter((f) => isFinished(f.fixture.status.short));
   const upcoming = teamFixtures.filter(
@@ -194,21 +210,104 @@ export function TeamDetail() {
         )}
 
         {tab === 'squad' && (
-          <div
-            style={{
-              background: 'var(--color-surface)',
-              borderRadius: 'var(--radius-lg)',
-              boxShadow: 'var(--shadow-card)',
-              padding: '12px 0',
-            }}
-          >
-            <div
-              className="px-4 py-2 text-sm"
-              style={{ color: 'var(--color-text-muted)' }}
-            >
-              Soupiska bude dostupná po začátku turnaje
-            </div>
-          </div>
+          <>
+            {squadLoading && (
+              <Skeleton height={300} rounded="var(--radius-lg)" />
+            )}
+            {!squadLoading && squad.length === 0 && (
+              <div
+                style={{
+                  background: 'var(--color-surface)',
+                  borderRadius: 'var(--radius-lg)',
+                  boxShadow: 'var(--shadow-card)',
+                  padding: '12px 0',
+                }}
+              >
+                <div
+                  className="px-4 py-2 text-sm"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
+                  Soupiska zatím není k dispozici
+                </div>
+              </div>
+            )}
+            {!squadLoading && squad.length > 0 && (
+              <div className="flex flex-col gap-4">
+                {squadByPosition.map((group) => (
+                  <div
+                    key={group.pos}
+                    style={{
+                      background: 'var(--color-surface)',
+                      borderRadius: 'var(--radius-lg)',
+                      boxShadow: 'var(--shadow-card)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      className="px-4 py-2 text-[11px] font-semibold uppercase tracking-wide"
+                      style={{
+                        background: 'var(--color-surface-raised)',
+                        color: 'var(--color-text-muted)',
+                      }}
+                    >
+                      {POSITION_LABELS[group.pos] ?? group.pos}
+                    </div>
+                    {group.players.map((player, idx) => (
+                      <button
+                        key={player.id}
+                        onClick={() =>
+                          navigate(`/player/${player.id}`, {
+                            state: {
+                              name: player.name,
+                              photo: player.photo,
+                              number: player.number,
+                              position: player.position,
+                              age: player.age,
+                              team: teamInfo
+                                ? { name: teamInfo.name, logo: teamInfo.logo }
+                                : undefined,
+                            },
+                          })
+                        }
+                        className="w-full flex items-center gap-3 px-4 py-2.5 text-left"
+                        style={{
+                          borderBottom:
+                            idx < group.players.length - 1
+                              ? '1px solid var(--color-divider)'
+                              : 'none',
+                        }}
+                      >
+                        <span
+                          className="w-6 text-xs font-bold text-center shrink-0"
+                          style={{ color: 'var(--color-green)' }}
+                        >
+                          {player.number ?? '–'}
+                        </span>
+                        <img
+                          src={player.photo}
+                          alt={player.name}
+                          className="w-8 h-8 rounded-full object-cover shrink-0"
+                          style={{ background: 'var(--color-surface-raised)' }}
+                        />
+                        <span
+                          className="text-sm font-medium"
+                          style={{ color: 'var(--color-text)' }}
+                        >
+                          {player.name}
+                        </span>
+                        <span
+                          className="ml-auto text-xs"
+                          style={{ color: 'var(--color-text-muted)' }}
+                        >
+                          {player.age} let
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

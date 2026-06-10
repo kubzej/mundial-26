@@ -19,12 +19,41 @@ export function Groups() {
   const currentGroup =
     allGroups.find((g) => g[0]?.group === `Group ${activeGroup}`) || [];
 
+  // 8 best third-placed teams advance to the Round of 32. The API exposes an
+  // official, pre-sorted ranking as an extra standings table; prefer it and
+  // fall back to computing one from each group's third-placed team.
+  const apiThirdRanking = allGroups.find(
+    (g) => g[0]?.group === 'Ranking of third-placed teams',
+  );
+  const thirdPlaceTeams =
+    apiThirdRanking ??
+    allGroups
+      .filter((g) => g[0]?.group?.startsWith('Group '))
+      .map((g) => g.find((t) => t.rank === 3) ?? g[2])
+      .filter((t): t is StandingTeam => !!t)
+      .sort(
+        (a, b) =>
+          b.points - a.points ||
+          b.goalsDiff - a.goalsDiff ||
+          b.all.goals.for - a.all.goals.for,
+      );
+
+  // Origin group per team (the third-place ranking table loses the group label).
+  const groupByTeamId = new Map<number, string>();
+  allGroups
+    .filter((g) => g[0]?.group?.startsWith('Group '))
+    .forEach((g) =>
+      g.forEach((t) =>
+        groupByTeamId.set(t.team.id, t.group.replace('Group ', '')),
+      ),
+    );
+
   return (
     <div>
       <PageHeader title="Skupiny" subtitle="12 skupin · 48 týmů" />
 
       {/* Group tabs */}
-      <div className="flex gap-1.5 px-4 py-3 overflow-x-auto">
+      <div className="flex gap-1.5 px-4 py-3 overflow-x-auto lg:flex-wrap lg:overflow-visible">
         {GROUPS.map((g) => (
           <button
             key={g}
@@ -42,6 +71,20 @@ export function Groups() {
             {g}
           </button>
         ))}
+        <button
+          onClick={() => setActiveGroup('3')}
+          className="shrink-0 px-3 h-9 rounded-xl text-xs font-bold transition-all whitespace-nowrap"
+          style={{
+            background:
+              activeGroup === '3'
+                ? 'var(--color-green)'
+                : 'var(--color-surface)',
+            color: activeGroup === '3' ? '#fff' : 'var(--color-text-secondary)',
+            boxShadow: activeGroup === '3' ? 'none' : 'var(--shadow-card)',
+          }}
+        >
+          3. místa
+        </button>
       </div>
 
       {/* Table */}
@@ -52,6 +95,8 @@ export function Groups() {
               <Skeleton key={i} height={56} rounded="var(--radius-md)" />
             ))}
           </div>
+        ) : activeGroup === '3' ? (
+          <ThirdPlaceTable teams={thirdPlaceTeams} groupByTeamId={groupByTeamId} />
         ) : (
           <div
             style={{
@@ -112,7 +157,10 @@ export function Groups() {
 
         {/* Legend */}
         <div className="flex gap-4 mt-3 px-1">
-          <LegendItem color="var(--color-green)" label="Postup" />
+          <LegendItem
+            color="var(--color-green)"
+            label={activeGroup === '3' ? 'Postup (top 8)' : 'Postup'}
+          />
           <LegendItem color="#f59e0b" label="Možný postup" />
         </div>
       </div>
@@ -204,6 +252,136 @@ function GroupRow({
         </span>
       ))}
     </button>
+  );
+}
+
+function ThirdPlaceTable({
+  teams,
+  groupByTeamId,
+}: {
+  teams: StandingTeam[];
+  groupByTeamId: Map<number, string>;
+}) {
+  const navigate = useNavigate();
+
+  if (teams.length === 0) {
+    return (
+      <div
+        className="py-8 text-center text-sm"
+        style={{
+          background: 'var(--color-surface)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-card)',
+          color: 'var(--color-text-muted)',
+        }}
+      >
+        Data nejsou dostupná
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        background: 'var(--color-surface)',
+        borderRadius: 'var(--radius-lg)',
+        boxShadow: 'var(--shadow-card)',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <div
+        className="flex items-center px-4 py-2"
+        style={{ background: 'var(--color-surface-raised)' }}
+      >
+        <span
+          className="w-6 text-[11px] font-semibold text-center"
+          style={{ color: 'var(--color-text-muted)' }}
+        >
+          #
+        </span>
+        <span
+          className="flex-1 text-[11px] font-semibold ml-2"
+          style={{ color: 'var(--color-text-muted)' }}
+        >
+          Tým
+        </span>
+        {['+/−', 'Skóre', 'B'].map((h) => (
+          <span
+            key={h}
+            className="w-10 text-[11px] font-semibold text-center"
+            style={{ color: 'var(--color-text-muted)' }}
+          >
+            {h}
+          </span>
+        ))}
+      </div>
+
+      {teams.map((team, idx) => {
+        const advances = idx < 8;
+        const isLast = idx === teams.length - 1;
+        return (
+          <button
+            key={team.team.id}
+            onClick={() => navigate(`/team/${team.team.id}`)}
+            className="w-full flex items-center px-4 py-3 text-left"
+            style={{
+              borderBottom: isLast ? 'none' : '1px solid var(--color-divider)',
+            }}
+          >
+            <span
+              className="w-6 text-sm font-bold text-center"
+              style={{
+                color: advances
+                  ? 'var(--color-green)'
+                  : 'var(--color-text-muted)',
+              }}
+            >
+              {idx + 1}
+            </span>
+            <div className="flex items-center gap-2 flex-1 min-w-0 ml-2">
+              <TeamLogo logo={team.team.logo} name={team.team.name} size="sm" />
+              <span
+                className="text-sm font-medium truncate"
+                style={{ color: 'var(--color-text)' }}
+              >
+                {team.team.name}
+              </span>
+              {groupByTeamId.get(team.team.id) && (
+                <span
+                  className="text-[10px] shrink-0"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
+                  Sk. {groupByTeamId.get(team.team.id)}
+                </span>
+              )}
+            </div>
+            <span
+              className="w-10 text-sm text-center"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              {team.all.goals.for - team.all.goals.against > 0 ? '+' : ''}
+              {team.all.goals.for - team.all.goals.against}
+            </span>
+            <span
+              className="w-10 text-sm text-center"
+              style={{
+                color: 'var(--color-text-secondary)',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {team.all.goals.for}:{team.all.goals.against}
+            </span>
+            <span
+              className="w-10 text-sm text-center font-bold"
+              style={{ color: 'var(--color-text)' }}
+            >
+              {team.points}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
