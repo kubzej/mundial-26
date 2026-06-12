@@ -10,25 +10,36 @@ import { TOURNAMENT } from '../lib/tournament';
 
 const GROUPS = TOURNAMENT.groups;
 
+// The live API labels group tables "Group Stage - Group A" while mock/older
+// data uses "Group A". Extract the single-letter group id from either form;
+// returns null for non-group tables (e.g. the third-place ranking).
+function groupLetter(name?: string): string | null {
+  const m = name?.match(/Group ([A-L])$/);
+  return m ? m[1] : null;
+}
+
 export function Groups() {
   const { data, isLoading } = useStandings();
   const [activeGroup, setActiveGroup] = useState<string>('A');
 
   const allGroups = data?.[0]?.league?.standings || [];
 
+  // The 12 lettered group tables, separated from any extra ranking tables.
+  const groupTables = allGroups.filter((g) => groupLetter(g[0]?.group));
+
   const currentGroup =
-    allGroups.find((g) => g[0]?.group === `Group ${activeGroup}`) || [];
+    allGroups.find((g) => groupLetter(g[0]?.group) === activeGroup) || [];
 
   // 8 best third-placed teams advance to the Round of 32. The API exposes an
-  // official, pre-sorted ranking as an extra standings table; prefer it and
-  // fall back to computing one from each group's third-placed team.
+  // official, pre-sorted ranking as an extra standings table (labelled
+  // "Group Stage" / "Ranking of third-placed teams"); prefer it and fall back
+  // to computing one from each group's third-placed team.
   const apiThirdRanking = allGroups.find(
-    (g) => g[0]?.group === 'Ranking of third-placed teams',
+    (g) => !groupLetter(g[0]?.group) && g.length > 4,
   );
   const thirdPlaceTeams =
     apiThirdRanking ??
-    allGroups
-      .filter((g) => g[0]?.group?.startsWith('Group '))
+    groupTables
       .map((g) => g.find((t) => t.rank === 3) ?? g[2])
       .filter((t): t is StandingTeam => !!t)
       .sort(
@@ -40,13 +51,12 @@ export function Groups() {
 
   // Origin group per team (the third-place ranking table loses the group label).
   const groupByTeamId = new Map<number, string>();
-  allGroups
-    .filter((g) => g[0]?.group?.startsWith('Group '))
-    .forEach((g) =>
-      g.forEach((t) =>
-        groupByTeamId.set(t.team.id, t.group.replace('Group ', '')),
-      ),
-    );
+  groupTables.forEach((g) =>
+    g.forEach((t) => {
+      const letter = groupLetter(t.group);
+      if (letter) groupByTeamId.set(t.team.id, letter);
+    }),
+  );
 
   return (
     <div>
