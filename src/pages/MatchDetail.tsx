@@ -258,12 +258,36 @@ function EventsTimeline({
 
   const homeId = fixture.teams.home.id;
 
-  const typeIcon = (type: string, detail: string): string => {
-    if (type === 'Goal') return detail.includes('Penalty') ? '⚽ P' : '⚽';
-    if (type === 'Card') return detail.includes('Yellow') ? '🟨' : '🟥';
-    if (type === 'subst') return '↔';
-    return '';
-  };
+  // The API marks a missed penalty as type "Goal" (detail "Missed Penalty") —
+  // it is NOT a goal and must never read as one. Own goals count for the
+  // opposing team. Track the running score so every real goal visibly moves it.
+  let h = 0;
+  let a = 0;
+  const rows = events.map((event) => {
+    const isOwnGoal = event.detail === 'Own Goal';
+    const isMissedPen =
+      event.type === 'Goal' && event.detail.includes('Missed');
+    const isGoal = event.type === 'Goal' && !isMissedPen;
+    // The team credited with the goal — for an own goal that's the opponent,
+    // not the player's team.
+    const scoringTeam = isOwnGoal
+      ? event.team.id === homeId
+        ? fixture.teams.away
+        : fixture.teams.home
+      : event.team;
+    if (isGoal) {
+      if (scoringTeam.id === homeId) h += 1;
+      else a += 1;
+    }
+    return {
+      event,
+      isGoal,
+      isOwnGoal,
+      isMissedPen,
+      scoringTeam,
+      score: isGoal ? `${h}–${a}` : null,
+    };
+  });
 
   return (
     <div
@@ -274,9 +298,32 @@ function EventsTimeline({
         overflow: 'hidden',
       }}
     >
-      {events.map((event, idx) => {
+      {rows.map(({ event, isGoal, isOwnGoal, isMissedPen, scoringTeam, score }, idx) => {
         const isHome = event.team.id === homeId;
-        const icon = typeIcon(event.type, event.detail);
+        const goalLabel = isOwnGoal
+          ? 'VLASTNÍ'
+          : event.detail.includes('Penalty')
+            ? 'GÓL · pen.'
+            : 'GÓL';
+
+        const name = (
+          <span
+            className={isGoal ? 'text-[15px] font-bold' : 'text-sm font-medium'}
+            style={{
+              color: isGoal ? 'var(--color-text)' : 'var(--color-text-secondary)',
+            }}
+          >
+            {event.player.name}
+            {event.assist.name && (
+              <span
+                className="text-xs ml-1 font-normal"
+                style={{ color: 'var(--color-text-muted)' }}
+              >
+                ({event.assist.name})
+              </span>
+            )}
+          </span>
+        );
 
         return (
           <div
@@ -284,35 +331,26 @@ function EventsTimeline({
             className="flex items-center gap-2 px-4 py-2.5"
             style={{
               borderBottom:
-                idx < events.length - 1
+                idx < rows.length - 1
                   ? '1px solid var(--color-divider)'
                   : 'none',
+              // Goals get a strong green highlight + left accent so they can
+              // never be confused with a substitution at a glance.
+              background: isGoal
+                ? 'color-mix(in srgb, var(--color-green) 10%, transparent)'
+                : 'transparent',
+              borderLeft: isGoal
+                ? '3px solid var(--color-green)'
+                : '3px solid transparent',
             }}
           >
             {/* Home side */}
-            {isHome ? (
-              <div className="flex-1 flex items-center gap-2">
-                <span
-                  className="text-sm font-medium"
-                  style={{ color: 'var(--color-text)' }}
-                >
-                  {event.player.name}
-                  {event.assist.name && (
-                    <span
-                      className="text-xs ml-1"
-                      style={{ color: 'var(--color-text-muted)' }}
-                    >
-                      ({event.assist.name})
-                    </span>
-                  )}
-                </span>
-              </div>
-            ) : (
-              <div className="flex-1" />
-            )}
+            <div className="flex-1 min-w-0">
+              {isHome && name}
+            </div>
 
-            {/* Minute + icon */}
-            <div className="flex flex-col items-center w-14 shrink-0">
+            {/* Minute + event marker */}
+            <div className="flex flex-col items-center shrink-0 w-[88px]">
               <span
                 className="text-xs font-semibold"
                 style={{ color: 'var(--color-text-muted)' }}
@@ -320,35 +358,104 @@ function EventsTimeline({
                 {event.time.elapsed}
                 {event.time.extra ? `+${event.time.extra}` : ''}'
               </span>
-              <span className="text-base">{icon}</span>
+              <EventChip
+                isGoal={isGoal}
+                isOwnGoal={isOwnGoal}
+                isMissedPen={isMissedPen}
+                goalLabel={goalLabel}
+                score={score}
+                scoringTeam={scoringTeam}
+                type={event.type}
+                detail={event.detail}
+              />
             </div>
 
             {/* Away side */}
-            {!isHome ? (
-              <div className="flex-1 flex items-center justify-end gap-2">
-                <span
-                  className="text-sm font-medium text-right"
-                  style={{ color: 'var(--color-text)' }}
-                >
-                  {event.player.name}
-                  {event.assist.name && (
-                    <span
-                      className="text-xs ml-1"
-                      style={{ color: 'var(--color-text-muted)' }}
-                    >
-                      ({event.assist.name})
-                    </span>
-                  )}
-                </span>
-              </div>
-            ) : (
-              <div className="flex-1" />
-            )}
+            <div className="flex-1 min-w-0 flex justify-end text-right">
+              {!isHome && name}
+            </div>
           </div>
         );
       })}
     </div>
   );
+}
+
+function EventChip({
+  isGoal,
+  isOwnGoal,
+  isMissedPen,
+  goalLabel,
+  score,
+  scoringTeam,
+  type,
+  detail,
+}: {
+  isGoal: boolean;
+  isOwnGoal: boolean;
+  isMissedPen: boolean;
+  goalLabel: string;
+  score: string | null;
+  scoringTeam: { logo: string; name: string };
+  type: string;
+  detail: string;
+}) {
+  // Goal: loud green pill with the scoring team's flag and the score — the one
+  // event the tipping game hinges on, so which team scored must be unmistakable.
+  if (isGoal) {
+    return (
+      <span
+        className="mt-0.5 flex items-center gap-1 pl-0.5 pr-2 py-0.5 rounded-full text-[11px] font-extrabold leading-none"
+        style={{
+          background: isOwnGoal ? '#f59e0b' : 'var(--color-green)',
+          color: '#fff',
+        }}
+      >
+        <TeamLogo
+          logo={scoringTeam.logo}
+          name={scoringTeam.name}
+          size="sm"
+          className="!w-4 !h-4 rounded-full"
+        />
+        <span>{goalLabel}</span>
+        {score && <span className="opacity-90">{score}</span>}
+      </span>
+    );
+  }
+
+  // Missed penalty is type "Goal" in the data — render it as an explicit miss.
+  if (isMissedPen) {
+    return (
+      <span
+        className="mt-0.5 flex items-center gap-1 text-[11px] font-semibold leading-none"
+        style={{ color: 'var(--color-text-muted)' }}
+      >
+        ✗ neproměněná pen.
+      </span>
+    );
+  }
+
+  if (type === 'Card') {
+    return (
+      <span className="mt-0.5 text-sm leading-none">
+        {detail.includes('Yellow') ? '🟨' : '🟥'}
+      </span>
+    );
+  }
+
+  // Substitution — deliberately quiet so it stays clearly secondary to goals.
+  if (type === 'subst') {
+    return (
+      <span
+        className="mt-0.5 flex items-center gap-0.5 text-[10px] font-medium leading-none"
+        style={{ color: 'var(--color-text-muted)' }}
+      >
+        ↔ stříd.
+      </span>
+    );
+  }
+
+  return null;
 }
 
 function LineupsView({ lineups }: { lineups: Lineup[] }) {
